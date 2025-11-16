@@ -28,7 +28,7 @@ pub mod fundingme_dapp {
         Ok(())
     }
 
-    pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> {
+    pub fn donate(ctx: Context<RunningProject>, amount: u64) -> Result<()> {
         let txn = anchor_lang::solana_program::system_instruction::transfer(
             &ctx.accounts.user.key(),
             &ctx.accounts.project.key(),
@@ -67,7 +67,7 @@ pub struct CreateProject<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Donate<'info> {
+pub struct RunningProject<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(mut)]
