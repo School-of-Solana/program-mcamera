@@ -10,7 +10,7 @@ pub mod fundingme_dapp {
         ctx: Context<CreateProject>,
         name: String,
         financial_target: u64,
-    ) -> Result<()> {        
+    ) -> Result<()> {
         let project = &mut ctx.accounts.project;
         project.owner = *ctx.accounts.user.key;
         project.name = name;
@@ -25,6 +25,26 @@ pub mod fundingme_dapp {
         msg!("Project Data pubkey: {}", project.owner.key().to_string());
         msg!("Financial Target: {}", project.financial_target.to_string());
         msg!("Status: {}", project.status.to_string());
+        Ok(())
+    }
+
+    pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> {
+        let txn = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.user.key(),
+            &ctx.accounts.project.key(),
+            amount,
+        );
+
+        anchor_lang::solana_program::program::invoke(
+            &txn,
+            &[
+                ctx.accounts.user.to_account_info(),
+                ctx.accounts.project.to_account_info(),
+            ],
+        )?;
+
+        (&mut ctx.accounts.project).balance += amount;
+
         Ok(())
     }
 }
@@ -43,6 +63,15 @@ pub struct CreateProject<'info> {
     )]
     pub project: Account<'info, ProjectAccount>,
 
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Donate<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(mut)]
+    pub project: Account<'info, ProjectAccount>,
     pub system_program: Program<'info, System>,
 }
 
