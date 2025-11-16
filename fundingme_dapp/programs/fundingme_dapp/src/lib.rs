@@ -1,5 +1,11 @@
 use anchor_lang::prelude::*;
 
+pub mod errors;
+use crate::errors::CustomError;
+
+pub mod status;
+use status::ProjectStatus;
+
 declare_id!("DmcSC8vFAoLr756aDoqkV13S6kosdHHNuziRezhCcKUi");
 
 #[program]
@@ -16,7 +22,7 @@ pub mod fundingme_dapp {
         project.name = name;
         project.financial_target = financial_target;
         project.balance = 0;
-        project.status = "Active".to_string();
+        project.status = ProjectStatus::Active;
         project.bump = ctx.bumps.project;
 
         msg!("Greetings from: {:?}", ctx.program_id);
@@ -24,7 +30,7 @@ pub mod fundingme_dapp {
         msg!("Project Owner pubkey: {}", project.key().to_string());
         msg!("Project Data pubkey: {}", project.owner.key().to_string());
         msg!("Financial Target: {}", project.financial_target.to_string());
-        msg!("Status: {}", project.status.to_string());
+        msg!("Status: {:?}", project.status);
         Ok(())
     }
 
@@ -47,7 +53,21 @@ pub mod fundingme_dapp {
 
         Ok(())
     }
+
+    pub fn close_project(ctx: Context<RunningProject>) -> Result<()> {
+        let status = &ctx.accounts.project.status;
+
+        if *status == ProjectStatus::Active {
+            Ok(()) // TODO: implement withdraw to the donors and set project status to failed.
+        } else if *status == ProjectStatus::TargetReached {
+            Ok(()) // TODO: implement total amount withdraw to the owner and set project status as success.
+        } else {
+            err!(CustomError::InvalidProjectStatus)
+        }
+    }
+
 }
+
 
 #[derive(Accounts)]
 pub struct CreateProject<'info> {
@@ -81,6 +101,6 @@ pub struct ProjectAccount {
     name: String,
     financial_target: u64,
     balance: u64,
-    status: String,
+    status: ProjectStatus,
     bump: u8,
 }
