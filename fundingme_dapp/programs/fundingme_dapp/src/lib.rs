@@ -51,6 +51,10 @@ pub mod fundingme_dapp {
 
         (&mut ctx.accounts.project).balance += amount;
 
+        if ctx.accounts.project.balance >= ctx.accounts.project.financial_target {
+            ctx.accounts.project.status = ProjectStatus::TargetReached
+        };
+
         Ok(())
     }
 

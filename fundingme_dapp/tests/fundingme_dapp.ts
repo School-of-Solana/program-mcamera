@@ -199,4 +199,190 @@ describe("Donate testings", () => {
 
     console.log("Total project balance after multiple donations:", finalProjectAccount.balance.toNumber());
   });
+
+  it("Should track donation progress towards financial target", async () => {
+    const user = anchor.web3.Keypair.generate();
+    const donor = anchor.web3.Keypair.generate();
+    
+    // Create a project with a small target for easier testing (1000 lamports = 0.000001 SOL)
+    const targetAmount = 1000;
+    const projectAccountPdaAddr = await createProject(program, user, "Target Test Project", targetAmount);
+
+    // Airdrop SOL to the donor
+    const airdropSignature = await anchor.getProvider().connection.requestAirdrop(
+      donor.publicKey,
+      anchor.web3.LAMPORTS_PER_SOL
+    );
+    await anchor.getProvider().connection.confirmTransaction(airdropSignature);
+
+    // Get initial project state
+    const initialProjectAccount = await program.account.projectAccount.fetch(projectAccountPdaAddr);
+    
+    // Verify initial state
+    assert.strictEqual(initialProjectAccount.balance.toNumber(), 0, "Initial balance should be 0");
+    assert.strictEqual(initialProjectAccount.financialTarget.toNumber(), targetAmount, "Financial target should match");
+
+    // Make a donation that exactly meets the target
+    const donationAmount = new anchor.BN(targetAmount);
+    const tx = await program.methods
+      .donate(donationAmount)
+      .accounts({
+        user: donor.publicKey,
+        project: projectAccountPdaAddr,
+      })
+      .signers([donor])
+      .rpc({ commitment: "confirmed" });
+
+    // Verify the project has reached its financial target
+    const finalProjectAccount = await program.account.projectAccount.fetch(projectAccountPdaAddr);
+    
+    assert.strictEqual(
+      finalProjectAccount.balance.toNumber(),
+      targetAmount,
+      "Project balance should exactly match the financial target"
+    );
+
+    // Check funding percentage
+    const fundingPercentage = (finalProjectAccount.balance.toNumber() / finalProjectAccount.financialTarget.toNumber()) * 100;
+    assert.strictEqual(fundingPercentage, 100, "Project should be 100% funded");
+
+    // Check that project status is updated to TargetReached
+    assert.deepStrictEqual(finalProjectAccount.status, { targetReached: {} }, "Project status should be TargetReached when target is met");
+
+    console.log("Final donation transaction signature:", tx);
+    console.log(`Project funding: ${fundingPercentage.toFixed(2)}% of target`);
+    console.log(`Target: ${finalProjectAccount.financialTarget.toNumber()} lamports`);
+    console.log(`Current balance: ${finalProjectAccount.balance.toNumber()} lamports`);
+    console.log("Project status:", finalProjectAccount.status);
+  });
+
+  it("Should handle donations that exceed the financial target", async () => {
+    const user = anchor.web3.Keypair.generate();
+    const donor = anchor.web3.Keypair.generate();
+    
+    // Create a project with a small target (1000 lamports)
+    const targetAmount = 1000;
+    const projectAccountPdaAddr = await createProject(program, user, "Exceed Target Project", targetAmount);
+
+    // Airdrop SOL to the donor
+    const airdropSignature = await anchor.getProvider().connection.requestAirdrop(
+      donor.publicKey,
+      anchor.web3.LAMPORTS_PER_SOL
+    );
+    await anchor.getProvider().connection.confirmTransaction(airdropSignature);
+
+    // Make a donation that exceeds the target by 50% (1500 lamports)
+    const donationAmount = new anchor.BN(1500);
+    const tx = await program.methods
+      .donate(donationAmount)
+      .accounts({
+        user: donor.publicKey,
+        project: projectAccountPdaAddr,
+      })
+      .signers([donor])
+      .rpc({ commitment: "confirmed" });
+
+    // Verify the project has exceeded its financial target
+    const finalProjectAccount = await program.account.projectAccount.fetch(projectAccountPdaAddr);
+    
+    assert.strictEqual(
+      finalProjectAccount.balance.toNumber(),
+      1500,
+      "Project balance should reflect the full donation amount"
+    );
+
+    // Check that the project is overfunded
+    const fundingPercentage = (finalProjectAccount.balance.toNumber() / finalProjectAccount.financialTarget.toNumber()) * 100;
+    assert.ok(fundingPercentage > 100, "Project should be overfunded (>100%)");
+    assert.strictEqual(fundingPercentage, 150, "Project should be exactly 150% funded");
+
+    // Check that project status is updated to TargetReached since target is exceeded
+    assert.deepStrictEqual(finalProjectAccount.status, { targetReached: {} }, "Project status should be TargetReached when target is exceeded");
+
+    const excessAmount = finalProjectAccount.balance.toNumber() - finalProjectAccount.financialTarget.toNumber();
+    
+    console.log("Exceed target transaction signature:", tx);
+    console.log(`Project funding: ${fundingPercentage.toFixed(2)}% of target`);
+    console.log(`Target: ${finalProjectAccount.financialTarget.toNumber()} lamports`);
+    console.log(`Current balance: ${finalProjectAccount.balance.toNumber()} lamports`);
+    console.log(`Excess amount: ${excessAmount} lamports (${((excessAmount / finalProjectAccount.financialTarget.toNumber()) * 100).toFixed(2)}% over target)`);
+    console.log("Project status:", finalProjectAccount.status);
+  });
+
+  it("Should track partial funding progress", async () => {
+    const user = anchor.web3.Keypair.generate();
+    const donor1 = anchor.web3.Keypair.generate();
+    const donor2 = anchor.web3.Keypair.generate();
+    
+    // Create a project with a larger target (10000 lamports)
+    const targetAmount = 10000;
+    const projectAccountPdaAddr = await createProject(program, user, "Partial Funding Project", targetAmount);
+
+    // Airdrop SOL to both donors
+    const airdrop1Promise = anchor.getProvider().connection.requestAirdrop(donor1.publicKey, anchor.web3.LAMPORTS_PER_SOL);
+    const airdrop2Promise = anchor.getProvider().connection.requestAirdrop(donor2.publicKey, anchor.web3.LAMPORTS_PER_SOL);
+    
+    const [airdrop1Sig, airdrop2Sig] = await Promise.all([airdrop1Promise, airdrop2Promise]);
+    
+    await Promise.all([
+      anchor.getProvider().connection.confirmTransaction(airdrop1Sig),
+      anchor.getProvider().connection.confirmTransaction(airdrop2Sig)
+    ]);
+
+    // First donation: 25% of target (2500 lamports)
+    const donation1Amount = new anchor.BN(2500);
+    const tx1 = await program.methods
+      .donate(donation1Amount)
+      .accounts({
+        user: donor1.publicKey,
+        project: projectAccountPdaAddr,
+      })
+      .signers([donor1])
+      .rpc({ commitment: "confirmed" });
+
+    // Check funding after first donation
+    let projectAccount = await program.account.projectAccount.fetch(projectAccountPdaAddr);
+    let fundingPercentage = (projectAccount.balance.toNumber() / projectAccount.financialTarget.toNumber()) * 100;
+    
+    assert.strictEqual(fundingPercentage, 25, "Project should be 25% funded after first donation");
+    assert.ok(fundingPercentage < 100, "Project should be partially funded (<100%)");
+    
+    // Check that project status is still Active since target is not reached
+    assert.deepStrictEqual(projectAccount.status, { active: {} }, "Project status should remain Active when partially funded");
+
+    console.log("First partial donation transaction signature:", tx1);
+    console.log(`After first donation - Project funding: ${fundingPercentage.toFixed(2)}% of target`);
+    console.log("Project status after first donation:", projectAccount.status);
+
+    // Second donation: Additional 40% of target (4000 lamports)
+    const donation2Amount = new anchor.BN(4000);
+    const tx2 = await program.methods
+      .donate(donation2Amount)
+      .accounts({
+        user: donor2.publicKey,
+        project: projectAccountPdaAddr,
+      })
+      .signers([donor2])
+      .rpc({ commitment: "confirmed" });
+
+    // Check final funding status
+    const finalProjectAccount = await program.account.projectAccount.fetch(projectAccountPdaAddr);
+    const finalFundingPercentage = (finalProjectAccount.balance.toNumber() / finalProjectAccount.financialTarget.toNumber()) * 100;
+    
+    assert.strictEqual(finalFundingPercentage, 65, "Project should be 65% funded after both donations");
+    assert.ok(finalFundingPercentage < 100, "Project should still be partially funded (<100%)");
+
+    // Check that project status is still Active since target is not reached
+    assert.deepStrictEqual(finalProjectAccount.status, { active: {} }, "Project status should remain Active when still partially funded");
+
+    const remainingAmount = finalProjectAccount.financialTarget.toNumber() - finalProjectAccount.balance.toNumber();
+    const remainingPercentage = 100 - finalFundingPercentage;
+
+    console.log("Second partial donation transaction signature:", tx2);
+    console.log(`Final funding status: ${finalFundingPercentage.toFixed(2)}% of target`);
+    console.log(`Target: ${finalProjectAccount.financialTarget.toNumber()} lamports`);
+    console.log(`Current balance: ${finalProjectAccount.balance.toNumber()} lamports`);
+    console.log(`Remaining needed: ${remainingAmount} lamports (${remainingPercentage.toFixed(2)}% to reach target)`);
+    console.log("Final project status:", finalProjectAccount.status);
+  });
 });
