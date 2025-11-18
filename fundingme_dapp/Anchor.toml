@@ -5,6 +5,9 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+fundingme_dapp = "DmcSC8vFAoLr756aDoqkV13S6kosdHHNuziRezhCcKUi"
+
 [programs.localnet]
 fundingme_dapp = "DmcSC8vFAoLr756aDoqkV13S6kosdHHNuziRezhCcKUi"
 
@@ -12,8 +15,8 @@ fundingme_dapp = "DmcSC8vFAoLr756aDoqkV13S6kosdHHNuziRezhCcKUi"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "Devnet"
+wallet = "./id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
