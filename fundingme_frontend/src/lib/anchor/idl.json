@@ -1,0 +1,169 @@
+{
+  "address": "DmcSC8vFAoLr756aDoqkV13S6kosdHHNuziRezhCcKUi",
+  "metadata": {
+    "name": "fundingme_dapp",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "claim_refund",
+      "discriminator": [15, 16, 30, 161, 255, 228, 97, 60],
+      "accounts": [
+        { "name": "donator", "writable": true, "signer": true },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [112, 114, 111, 106, 101, 99, 116] },
+              { "kind": "account", "path": "project.owner", "account": "ProjectAccount" }
+            ]
+          }
+        },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_failed_project",
+      "discriminator": [189, 82, 244, 246, 12, 18, 234, 36],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [112, 114, 111, 106, 101, 99, 116] },
+              { "kind": "account", "path": "project.owner", "account": "ProjectAccount" }
+            ]
+          }
+        },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_project",
+      "discriminator": [117, 209, 53, 106, 93, 55, 112, 49],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "project", "writable": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_project",
+      "discriminator": [148, 219, 181, 42, 221, 114, 145, 190],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [112, 114, 111, 106, 101, 99, 116] },
+              { "kind": "account", "path": "user" }
+            ]
+          }
+        },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "name", "type": "string" },
+        { "name": "financial_target", "type": "u64" }
+      ]
+    },
+    {
+      "name": "donate",
+      "discriminator": [121, 186, 218, 211, 73, 70, 196, 180],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "project", "writable": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [{ "name": "amount", "type": "u64" }]
+    },
+    {
+      "name": "get_donator_count",
+      "discriminator": [189, 84, 184, 14, 127, 48, 52, 9],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        { "name": "project", "writable": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [],
+      "returns": "u64"
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
+      "accounts": [
+        { "name": "user", "writable": true, "signer": true },
+        {
+          "name": "project",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [112, 114, 111, 106, 101, 99, 116] },
+              { "kind": "account", "path": "project.owner", "account": "ProjectAccount" }
+            ]
+          }
+        },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    { "name": "ProjectAccount", "discriminator": [179, 110, 82, 178, 208, 35, 171, 116] }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidProjectStatus", "msg": "Invalid project status for this operation" },
+    { "code": 6001, "name": "ProjectWithdrawNotAvailable", "msg": "Project is not available for this withdraw operation" },
+    { "code": 6002, "name": "UserNotAuthorized", "msg": "User not authorized for this operation" }
+  ],
+  "types": [
+    {
+      "name": "Donator",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "user", "type": "pubkey" },
+          { "name": "amount", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "ProjectAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "owner", "type": "pubkey" },
+          { "name": "name", "type": "string" },
+          { "name": "financial_target", "type": "u64" },
+          { "name": "balance", "type": "u64" },
+          { "name": "status", "type": { "defined": { "name": "ProjectStatus" } } },
+          { "name": "donators", "type": { "vec": { "defined": { "name": "Donator" } } } },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "ProjectStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Active" },
+          { "name": "Paused" },
+          { "name": "TargetReached" },
+          { "name": "Success" },
+          { "name": "Failed" }
+        ]
+      }
+    }
+  ]
+}

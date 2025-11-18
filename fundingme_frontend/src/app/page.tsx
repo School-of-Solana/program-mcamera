@@ -1,5 +1,5 @@
-import DashboardFeature from '@/features/dashboard/dashboard-feature'
+import FundingApp from '@/components/FundingApp'
 
 export default function Home() {
-  return <DashboardFeature />
+  return <FundingApp />
 }
