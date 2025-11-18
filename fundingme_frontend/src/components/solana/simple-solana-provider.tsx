@@ -16,7 +16,7 @@ export function SimpleSolanaProvider({ children }: { children: ReactNode }) {
     () => [
       new PhantomWalletAdapter(),
     ],
-    [network]
+    []
   )
 
   return (

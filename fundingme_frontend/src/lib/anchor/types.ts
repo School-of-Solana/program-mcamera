@@ -1,4 +1,3 @@
-import { IdlAccounts, Program } from '@coral-xyz/anchor'
 import { PublicKey } from '@solana/web3.js'
 
 // Import the IDL type
@@ -123,8 +122,16 @@ export type FundingmeDapp = {
   ]
 }
 
-// Derived types from the IDL
-export type ProjectAccount = IdlAccounts<FundingmeDapp>['projectAccount']
+// Simplified types to avoid complex IDL constraints
+export type ProjectAccount = {
+  owner: PublicKey
+  name: string
+  financialTarget: any
+  balance: any
+  status: ProjectStatus
+  donators: Donator[]
+  bump: number
+}
 
 export type Donator = {
   user: PublicKey
@@ -132,11 +139,11 @@ export type Donator = {
 }
 
 export type ProjectStatus = 
-  | { active: {} }
-  | { paused: {} }
-  | { targetReached: {} }
-  | { success: {} }
-  | { failed: {} }
+  | { active: Record<string, never> }
+  | { paused: Record<string, never> }
+  | { targetReached: Record<string, never> }
+  | { success: Record<string, never> }
+  | { failed: Record<string, never> }
 
 export type ProjectData = {
   owner: PublicKey

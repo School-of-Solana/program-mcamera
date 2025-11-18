@@ -4,29 +4,11 @@ import { useState, useEffect } from 'react'
 import { useSimpleSolana } from '@/components/solana/use-simple-solana'
 import { Connection, PublicKey, clusterApiUrl, SystemProgram } from '@solana/web3.js'
 import { AnchorProvider, BN, Wallet } from '@coral-xyz/anchor'
-import { getProgram, getProjectPDA, getProjectAccount, PROGRAM_ID } from '@/lib/anchor/setup'
+import { getProgram, getProjectPDA, getProjectAccount, getProvider, PROGRAM_ID } from '@/lib/anchor/setup'
 import { ProjectData, ProjectStatus } from '@/lib/anchor/types'
 import { toast } from 'sonner'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 
 const connection = new Connection(clusterApiUrl('devnet'), 'confirmed')
-
-// Create a wallet adapter for the existing wallet
-function createWalletAdapter(account: any, client: any) {
-  return {
-    publicKey: new PublicKey(account.address),
-    signTransaction: async (transaction: any) => {
-      const signed = await client.signTransaction(transaction)
-      return signed
-    },
-    signAllTransactions: async (transactions: any[]) => {
-      const signed = await Promise.all(
-        transactions.map(tx => client.signTransaction(tx))
-      )
-      return signed
-    }
-  }
-}
 
 export default function FundingApp() {
   const { wallet, connection, account } = useSimpleSolana()
@@ -48,13 +30,53 @@ export default function FundingApp() {
       signTransaction: wallet.signTransaction.bind(wallet),
       signAllTransactions: wallet.signAllTransactions.bind(wallet),
     }
-    return new AnchorProvider(connection, walletAdapter as Wallet, { commitment: 'confirmed' })
+    return new AnchorProvider(connection, walletAdapter as Wallet, { commitment: 'confirmed' } as any)
   }
 
   // Fetch project for current user
   const fetchMyProject = async () => {
-    if (!publicKey) return
-    await fetchProject(publicKey)
+    if (!publicKey) {
+      toast.error('Please connect your wallet first')
+      return
+    }
+    try {
+      setLoading(true)
+      const provider = getProvider()
+      if (!provider) {
+        toast.error('Wallet not connected properly')
+        return
+      }
+
+      const program = getProgram(provider)
+      const [projectPDA] = getProjectPDA(publicKey)
+      
+      const projectAccount = await getProjectAccount(program, projectPDA)
+      
+      if (projectAccount) {
+        setProject({
+          owner: projectAccount.owner,
+          name: projectAccount.name,
+          financialTarget: projectAccount.financialTarget.toNumber(),
+          balance: projectAccount.balance.toNumber(),
+          status: projectAccount.status,
+          donators: projectAccount.donators.map((d: { user: PublicKey; amount: { toNumber(): number } }) => ({
+            user: d.user,
+            amount: d.amount.toNumber()
+          })),
+          bump: projectAccount.bump
+        } as any)
+        toast.success('Project loaded successfully!')
+      } else {
+        setProject(null)
+        toast.info('No project found for your wallet')
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error)
+      setProject(null)
+      toast.error('Error loading project. Make sure you are connected to the correct network.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Fetch project for any address
@@ -75,12 +97,12 @@ export default function FundingApp() {
           financialTarget: projectAccount.financialTarget.toNumber(),
           balance: projectAccount.balance.toNumber(),
           status: projectAccount.status,
-          donators: projectAccount.donators.map((d: any) => ({
+          donators: projectAccount.donators.map((d: { user: PublicKey; amount: { toNumber(): number } }) => ({
             user: d.user,
             amount: d.amount.toNumber()
           })),
           bump: projectAccount.bump
-        })
+        } as any)
         toast.success('Project loaded successfully!')
       } else {
         setProject(null)
@@ -103,7 +125,7 @@ export default function FundingApp() {
     try {
       const ownerPubkey = new PublicKey(searchAddress.trim())
       await fetchProject(ownerPubkey)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Invalid address format')
     }
   }
@@ -125,13 +147,13 @@ export default function FundingApp() {
 
       const targetLamports = new BN(parseFloat(financialTarget) * 1e9)
 
-      await program.methods
+      const tx = await (program as any).methods
         .createProject(projectName, targetLamports)
         .accounts({
           user: publicKey,
           project: projectPDA,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc()
 
       setProjectName('')
@@ -162,13 +184,13 @@ export default function FundingApp() {
       
       const amountLamports = new BN(parseFloat(donationAmount) * 1e9)
 
-      await program.methods
+      const tx = await (program as any).methods
         .donate(amountLamports)
         .accounts({
           user: publicKey,
           project: projectPDA,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc()
 
       setDonationAmount('')
@@ -193,13 +215,13 @@ export default function FundingApp() {
       const program = getProgram(provider)
       const [projectPDA] = getProjectPDA(project.owner)
 
-      await program.methods
+      const tx = await (program as any).methods
         .closeProject()
         .accounts({
           user: publicKey,
           project: projectPDA,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc()
 
       await fetchProject(project.owner)
@@ -223,13 +245,13 @@ export default function FundingApp() {
       const program = getProgram(provider)
       const [projectPDA] = getProjectPDA(project.owner)
 
-      await program.methods
+      const tx = await (program as any).methods
         .withdraw()
         .accounts({
           user: publicKey,
           project: projectPDA,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc()
 
       await fetchProject(project.owner)
@@ -253,13 +275,13 @@ export default function FundingApp() {
       const program = getProgram(provider)
       const [projectPDA] = getProjectPDA(project.owner)
 
-      await program.methods
+      const tx = await (program as any).methods
         .claimRefund()
         .accounts({
           donator: publicKey,
           project: projectPDA,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc()
 
       await fetchProject(project.owner)
@@ -283,13 +305,13 @@ export default function FundingApp() {
       const program = getProgram(provider)
       const [projectPDA] = getProjectPDA(project.owner)
 
-      await program.methods
+      const tx = await (program as any).methods
         .closeFailedProject()
         .accounts({
           user: publicKey,
           project: projectPDA,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc()
 
       setProject(null)
