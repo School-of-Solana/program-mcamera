@@ -476,10 +476,35 @@ export default function FundingApp() {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4">
                 <div 
-                  className="bg-blue-600 h-4 rounded-full transition-all duration-300" 
+                  className={`h-4 rounded-full transition-all duration-300 ${
+                    progress >= 100 ? 'bg-green-600' : 'bg-blue-600'
+                  }`}
                   style={{ width: `${Math.min(progress, 100)}%` }}
                 ></div>
               </div>
+              {progress >= 100 && (
+                <div className="mt-2 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-600 rounded-lg">
+                  <p className="text-green-800 dark:text-green-200 font-semibold text-sm">
+                    🎉 Funding goal reached! The project owner can now close the project and withdraw funds.
+                  </p>
+                </div>
+              )}
+              {'failed' in project.status && (
+                <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-600 rounded-lg">
+                  <p className="text-red-800 dark:text-red-200 font-semibold text-sm">
+                    ⚠️ Project failed. All donators must withdraw their funds before the project owner can close this project.
+                  </p>
+                  {project.donators.length > 0 ? (
+                    <p className="text-red-700 dark:text-red-300 text-xs mt-1">
+                      Waiting for {project.donators.length} donator{project.donators.length > 1 ? 's' : ''} to claim refunds.
+                    </p>
+                  ) : (
+                    <p className="text-green-700 dark:text-green-300 text-xs mt-1">
+                      ✅ All donators have withdrawn. Project can now be closed.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Donators List */}
@@ -533,7 +558,7 @@ export default function FundingApp() {
                 <div className="border-t pt-4 space-y-3">
                   <h4 className="font-medium text-gray-700 dark:text-gray-300">Owner Actions:</h4>
                   
-                  {'active' in project.status && (
+                  {('active' in project.status || 'targetReached' in project.status) && (
                     <button
                       onClick={closeProject}
                       disabled={loading}
