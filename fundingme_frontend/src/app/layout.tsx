@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AppProviders } from '@/components/app-providers'
 import { AppLayout } from '@/components/app-layout'
+import { Analytics } from "@vercel/analytics/next"
 import React from 'react'
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AppProviders>
           <AppLayout links={links}>{children}</AppLayout>
         </AppProviders>
+        <Analytics />
       </body>
     </html>
   )
